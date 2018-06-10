@@ -164,8 +164,10 @@ v 5.2.2             Internal I2C: 19 (SCL0) & 18 (SDA0)
                     External I2C: 23 (SCL0) & 22 (SDA0)                
                     Note that I still have a (hardware?) issue in that the data line only goes to about 1.1v.  It should be 3.3v (the clock is 3.3v) 
 2018-05-31      ozh this works except that the I2C traffic is flowing across the PIN 19/18 hardware (i.e. the pin switch is NOT working)
-                    it successfully retrieves the fader values using DualEG firmware PTL30_fader_DualEGv2_5_1 (slave ID 0x68)
+v 5.2.3             it successfully retrieves the fader values using DualEG firmware PTL30_fader_DualEGv2_5_1 (slave ID 0x68)
 
+2018-06-10      ozh echo fader chase on ADSR @ 0x68
+v 6                 note: with this version, I've started using GitHub for source control        
 todo next:
 
            1) add a 'first time' flag for displaying all 4 destinations, even if they did not change                                         
@@ -1479,6 +1481,8 @@ void ledFaderChase() {
           mvcMSByte=FaderBoard0LEDs>>8;     // MSB
           mvcLSByte=FaderBoard0LEDs&0xFF;   // LSB
           writeFaderLEDs(i2c_addr_fader,mvcMSByte,mvcLSByte);
+          // also write to first ADSR
+          writeFaderLEDs(i2c_addr_dualADSR0,mvcMSByte,mvcLSByte);
           delay(iChaseDelayMS); 
           FaderBoard0LEDs=FaderBoard0LEDs<<2; 
           if(x<2) FaderBoard0LEDs=FaderBoard0LEDs|0x02; // add the ghost bit(s)
@@ -1491,6 +1495,8 @@ void ledFaderChase() {
           mvcMSByte=FaderBoard1LEDs>>8;     // MSB
           mvcLSByte=FaderBoard1LEDs&0xFF;   // LSB
           writeFaderLEDs(i2c_addr_fader,mvcMSByte,mvcLSByte);
+          // also write to first ADSR
+          writeFaderLEDs(i2c_addr_dualADSR0,mvcMSByte,mvcLSByte);
           delay(iChaseDelayMS); 
           FaderBoard1LEDs=FaderBoard1LEDs<<2; 
           if(x<12) FaderBoard1LEDs=FaderBoard1LEDs|0x02; // add the ghost bit(s)
