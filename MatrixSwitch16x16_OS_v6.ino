@@ -167,7 +167,10 @@ v 5.2.2             Internal I2C: 19 (SCL0) & 18 (SDA0)
 v 5.2.3             it successfully retrieves the fader values using DualEG firmware PTL30_fader_DualEGv2_5_1 (slave ID 0x68)
 
 2018-06-10      ozh echo fader chase on ADSR @ 0x68
-v 6                 note: with this version, I've started using GitHub for source control        
+v 6                 note: with this version, I've started using GitHub for source control   
+
+2018-08-03      ozh add support for ADSR @ 0x69 (i.e. 2 Dual EG modules)
+                    After party lights, turn on all LEDS
 todo next:
 
            1) add a 'first time' flag for displaying all 4 destinations, even if they did not change                                         
@@ -223,6 +226,15 @@ todo next:
 //  #define SM_PROTOTYPE_HARDWARE
 #endif
 
+// in case we want to trigger a faderChase to an external ADSR from the LOAD switch
+#ifndef DEF_I2C_WRITE_TESTONLY
+//  #define DEF_I2C_WRITE_TESTONLY
+#endif
+
+// in case we want to add a delay around the I2C write (load) traffic to make it easier to locate when decoding on 'scope
+#ifndef DEF_I2C_DELAY_WRITE_0x68
+//  #define DEF_I2C_DELAY_WRITE_0x68
+#endif
 
 #ifndef DEF_INTERNAL_EEPROM
 //  #define DEF_INTERNAL_EEPROM
@@ -356,9 +368,11 @@ const uint8_t i2c_addr_fader1=0x11;
 
 const uint8_t s=0x68;
 const uint8_t i2c_addr_dualADSR0=0x68;
+const uint8_t i2c_addr_dualADSR1=0x69;
 
 const int cADSRdataBytes=8;
 uint8_t dualADSRdata0[cADSRdataBytes]; // local storage for one dualADSR
+uint8_t dualADSRdata1[cADSRdataBytes]; // local storage for second dualADSR
 
 const int MIDIchannel = 2;    // MIDI channel on which to transmit
 const int cSoftTakeoverRange = 10; // +/- this value allows a MIDI updated value to be panel controlled
@@ -1483,6 +1497,7 @@ void ledFaderChase() {
           writeFaderLEDs(i2c_addr_fader,mvcMSByte,mvcLSByte);
           // also write to first ADSR
           writeFaderLEDs(i2c_addr_dualADSR0,mvcMSByte,mvcLSByte);
+          writeFaderLEDs(i2c_addr_dualADSR1,mvcMSByte,mvcLSByte);
           delay(iChaseDelayMS); 
           FaderBoard0LEDs=FaderBoard0LEDs<<2; 
           if(x<2) FaderBoard0LEDs=FaderBoard0LEDs|0x02; // add the ghost bit(s)
@@ -1495,8 +1510,9 @@ void ledFaderChase() {
           mvcMSByte=FaderBoard1LEDs>>8;     // MSB
           mvcLSByte=FaderBoard1LEDs&0xFF;   // LSB
           writeFaderLEDs(i2c_addr_fader,mvcMSByte,mvcLSByte);
-          // also write to first ADSR
+          // also write to ADSRs
           writeFaderLEDs(i2c_addr_dualADSR0,mvcMSByte,mvcLSByte);
+          writeFaderLEDs(i2c_addr_dualADSR1,mvcMSByte,mvcLSByte);
           delay(iChaseDelayMS); 
           FaderBoard1LEDs=FaderBoard1LEDs<<2; 
           if(x<12) FaderBoard1LEDs=FaderBoard1LEDs|0x02; // add the ghost bit(s)
@@ -1507,7 +1523,9 @@ void ledFaderChase() {
 
     // back to all leds on bright
     writeFaderLEDs(i2c_addr_fader0,255,255); 
-    writeFaderLEDs(i2c_addr_fader1,255,255);   
+    writeFaderLEDs(i2c_addr_fader1,255,255);  
+    writeFaderLEDs(i2c_addr_dualADSR0,255,255);
+    writeFaderLEDs(i2c_addr_dualADSR1,255,255); 
 }
 
 void setup() {
@@ -1667,13 +1685,24 @@ void readI2CSystemData() { // typically called just before a write program
       // DualADSR is configured like the fader boards for I2C purposes
 
       readFadersW1(i2c_addr_dualADSR0,dualADSRdata0,cADSRdataBytes,false);  // route faders
-    
+      readFadersW1(i2c_addr_dualADSR1,dualADSRdata1,cADSRdataBytes,false);  // route faders    
 }
 void writeI2CSystemData() { // typically called just after a load program
       // ultimately this list of modules should be dynamic.  for development, hardcode the list
       // DualADSR is configured like the fader boards for I2C purposes
-
+#ifdef DEF_I2C_WRITE_TESTONLY
+      // test only, do a fader chase instead, so we can trace LED write on demand from the load button
+      ledFaderChase();
+#else
+  #ifdef DEF_I2C_DELAY_WRITE_0x68
+        delay(10);    // 10 MS delay so we can isolate this I2C message in the 'scope trace
+  #endif
       writeFadersW1(i2c_addr_dualADSR0,dualADSRdata0,cADSRdataBytes);  // route faders
+      writeFadersW1(i2c_addr_dualADSR1,dualADSRdata1,cADSRdataBytes);  // route faders     
+  #ifdef DEF_I2C_DELAY_WRITE_0x68
+        delay(10);
+  #endif
+#endif
 }
 void loop() {
   // LFO interrupt code
